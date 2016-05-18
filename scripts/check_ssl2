@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+#_ Step # 1: Getting The Certificate
+system("mkdir -p /root/.cert/encrypted.google.com/");
+system("mkdir -p /root/.cert/encrypted.google.com/tmp");
+system("echo -ne \"GET / HTTP/1.0\r\n\r\n\" | openssl s_client -showcerts -connect www.godaddy.com:443 > /root/.cert/encrypted.google.com/tmp/encrypted.google.com.tmp");
+
+$file='/root/.cert/encrypted.google.com/tmp/encrypted.google.com.tmp';
+open(INFO, $file) or die("Could not open  file.");
+
+$filepem='/root/.cert/encrypted.google.com/encrypted.google.com.pem';
+open(PEMF,">>$filepem") || die("The file cannot be opened!");
+
+$save = 0;
+foreach $line (<INFO>)  {
+        if (index($line, "BEGIN CERTIFICATE") != -1){
+                $save = 1;
+        }
+
+        if ($save == 1){
+                print $line;
+                print PEMF "$line";
+        }
+
+        if (index($line, "END CERTIFICATE") != -1){
+                $save = 0;
+        }
+}
+close(INFO);
+close(PEMF);
+
+#_ Step # 2: Getting The Certificate Of The Issuer
+system("wget https://certs.godaddy.com/repository/gd_bundle.crt -O /root/.cert/encrypted.google.com/gd.pem");
+
+#_ Step # 3: Rehashing The Certificates
+system("c_rehash /root/.cert/encrypted.google.com/");
+
+#_ Test It
+system("echo -ne \"GET / HTTP/1.0\r\n\r\n\" | openssl s_client -CApath ~/.cert/encrypted.google.com/ -connect encrypted.google.com:443 > /root/.cert/encrypted.google.com/tmp/encrypted.google.com.result");
+
+$fileresult='/root/.cert/encrypted.google.com/tmp/encrypted.google.com.result';
+open(RESU, $fileresult) or die("Could not open  file.");
+
+foreach $msg (<RESU>)  {
+        if (index($msg, "Verify return code") != -1){
+                print "\n\n\n\n---------------------------------\n\n";
+                print $msg;
+                print "\n---------------------------------\n";
+        }
+}

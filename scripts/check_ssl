@@ -1,0 +1,39 @@
+#!/usr/bin/perl
+
+#_ Step # 1: Getting The Certificate
+system("mkdir -p ~/.cert/mail.nixcraft.net/");
+system("mkdir -p ~/.cert/mail.nixcraft.net/tmp");
+system("echo -ne \"GET / HTTP/1.0\r\n\r\n\" | openssl s_client -showcerts -connect www.godaddy.com:443 > /root/.cert/mail.nixcraft.net/tmp/mail.nixcraft.net.tmp");
+
+$file='/root/.cert/mail.nixcraft.net/tmp/mail.nixcraft.net.tmp';
+open(INFO, $file) or die("Could not open  file.");
+
+$filepem='/root/.cert/mail.nixcraft.net/mail.nixcraft.net.pem';
+open(PEMF,">>$filepem") || die("The file cannot be opened!");
+
+$save = 0;
+foreach $line (<INFO>)  {
+	if (index($line, "BEGIN CERTIFICATE") != -1){
+		$save = 1;
+	}
+
+	if ($save == 1){
+		print $line;
+		print PEMF "$line";
+	}
+
+        if (index($line, "END CERTIFICATE") != -1){
+                $save = 0;
+        }
+}
+close(INFO);
+
+#_ Step # 2: Getting The Certificate Of The Issuer
+system("wget https://certs.godaddy.com/repository/gd_bundle.crt -O /root/.cert/mail.nixcraft.net/gd.pem");
+
+#_ Step # 3: Rehashing The Certificates
+system("c_rehash /root/.cert/mail.nixcraft.net/");
+
+#_ Test It
+system("openssl s_client -CApath ~/.cert/mail.nixcraft.net/ -connect mail.nixcraft.net:443");
+
